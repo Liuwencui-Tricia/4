@@ -1561,65 +1561,6 @@ const experimentData = {
     });
     });
 
-    // 提交数据到 GitHub Actions
-    function submitExperimentData() {
-      const participantId = document.getElementById('participant-id').value;
-      const results = experimentResults;
-      
-      const issueTitle = `实验结果: ${participantId}`;
-      const issueBody = `
-        **参与者ID**: ${participantId}
-        **实验时间**: ${new Date().toLocaleString()}
-        **数据详情**:
-        \`\`\`json
-        ${JSON.stringify(results, null, 2)}
-        \`\`\`
-      `;
-
-      fetch(`https://api.github.com/repos/${config.githubRepo}/dispatches`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `token ${config.githubToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          event_type: 'create-issue',
-          client_payload: {
-            title: issueTitle,
-            body: issueBody
-          }
-        })
-      })
-      .then(response => {
-        if (response.status === 204) {
-          console.log('已触发 GitHub Action');
-          alert('实验数据已提交');
-        } else {
-          throw new Error(`提交失败: ${response.status}`);
-        }
-      })
-      .catch(error => {
-        console.error('提交时发生错误:', error);
-        alert('提交失败:', error.message);
-      });
-    }
-
-    // 完成实验时调用
-    function completeExperiment() {
-      // 验证参与者ID
-      if (!config.idValidation.test(document.getElementById('participant-id').value)) {
-        alert('请输入有效的参与者ID');
-        return;
-      }
-      
-      if (config.autoSubmit) {
-        submitExperimentData();
-      }
-      
-      // 显示完成页面或其他后续操作
-      alert('实验已完成，感谢参与！');
-    }
-
     // 下载数据
     exportBtn.addEventListener('click', () => {
     if (!experimentResults.length) {
@@ -1647,6 +1588,36 @@ const experimentData = {
     experimentResults.length = 0;
     document.getElementById('participant-id').value = '';
     });
+    
+    // 添加 completeExperiment 函数
+    function completeExperiment() {
+      if (config.autoSubmit) {
+        const data = JSON.stringify(experimentResults, null, 2);
+        const repo = config.githubRepo;
+        const token = config.githubToken;
+        const fileName = `experiment_results_${new Date().toISOString().replace(/[:.]/g, '-')}.json`;
+
+        const url = `https://api.github.com/repos/${repo}/contents/${fileName}`;
+        const content = btoa(data); // 对数据进行 Base64 编码
+
+        const options = {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            message: 'Automatically submit experiment results',
+            content: content
+          })
+        };
+
+        fetch(url, options)
+         .then(response => response.json())
+         .then(data => console.log('Data submitted successfully:', data))
+         .catch(error => console.error('Error submitting data:', error));
+      }
+    }
     
   </script>
 </html>
